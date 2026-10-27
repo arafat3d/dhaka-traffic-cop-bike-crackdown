@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Dhaka Traffic Cop: Bike Crackdown</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>
+:root{color-scheme:dark}
+html,body{margin:0;height:100%;background:#0b0f14;overflow:hidden;font:14px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;color:#eee}
+canvas{display:block;position:fixed;inset:0}
+[hidden]{display:none!important}
+#touch{display:none;position:fixed;inset:0;z-index:5;pointer-events:none;touch-action:none;user-select:none;-webkit-user-select:none}.tc{pointer-events:auto;position:absolute;bottom:calc(18px + env(safe-area-inset-bottom,0px));display:grid;gap:8px}#move{left:14px;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(2,56px)}#actions{right:14px;grid-template-columns:repeat(2,64px);grid-template-rows:repeat(2,56px)}#touch button{margin:0;padding:0;border:1px solid #ffffff66;border-radius:16px;background:#111c;color:#fff;font-size:20px;text-align:center;display:grid;place-items:center;touch-action:none;backdrop-filter:blur(4px)}#touch button:active,#touch button.down{background:#ffcc33;color:#111}#touch .wide{grid-column:span 2;font-size:15px}@media (pointer:coarse),(max-width:700px){#touch{display:block}#pr{bottom:calc(150px + env(safe-area-inset-bottom,0px));font-size:12px}}
+#hud{position:fixed;left:0;right:0;top:env(safe-area-inset-top,0px);display:flex;gap:8px;padding:8px;flex-wrap:wrap;pointer-events:none}
+.c{background:rgba(10,14,20,.8);border-radius:8px;padding:6px 10px;font-weight:600}
+#heat{width:150px}#heat i{display:block;height:8px;border-radius:4px;margin-top:3px;background:linear-gradient(90deg,#4ade80,#fbbf24,#ef4444);width:5%}
+#news{position:fixed;top:calc(52px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);width:min(560px,92vw);pointer-events:none;display:flex;flex-direction:column;gap:6px}
+.n{background:#fff;color:#111;padding:8px 12px;border-left:6px solid #2563eb;border-radius:6px;font-size:13px}.n.bad{border-color:#dc2626}.n.good{border-color:#16a34a}
+#pr{position:fixed;bottom:calc(14px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;background:rgba(10,14,20,.8);padding:6px 12px;border-radius:8px;max-width:92vw}
+#panel{position:fixed;right:0;top:0;bottom:0;width:min(380px,100%);background:rgba(20,26,36,.96);padding:16px;overflow:auto;box-sizing:border-box}
+.ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);padding:16px;box-sizing:border-box}
+.box{background:#141a24;border-radius:12px;padding:20px;max-width:460px;width:100%}
+button{font:inherit;background:#ffcc33;color:#111;border:0;border-radius:6px;padding:7px 12px;margin:4px 0;cursor:pointer;font-weight:600;text-align:left}
+button:disabled{opacity:.4}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between;border-bottom:1px solid #2a3340;padding:6px 0}.bad{color:#ff6b6b}.ok{color:#4ade80}
+.ex{display:block;width:100%;background:#7c3aed;color:#fff}#rel{display:block;width:100%;background:#334155;color:#fff;margin-top:10px}
+.q{font-style:italic;color:#aab}h2,h3,h4{margin:6px 0}
+.ov{z-index:9}#panel{z-index:3}#cb{position:fixed;inset:0;display:none;z-index:6;cursor:pointer}body.cs #cb{display:block}body.cs #hud,body.cs #pr,body.cs #panel{visibility:hidden}.bar{position:absolute;left:0;right:0;height:11vh;background:#000}.bar.t{top:0}.bar.b{bottom:0}#ct{position:absolute;left:0;right:0;bottom:20vh;text-align:center;font:900 clamp(22px,5.5vw,48px) system-ui,sans-serif;color:#ffd33d;text-shadow:0 3px 0 #000,0 0 20px #000;padding:0 10px}#cs2{position:absolute;left:0;right:0;bottom:13vh;text-align:center;font:600 clamp(13px,2.4vw,20px) system-ui;color:#fff;text-shadow:0 2px 6px #000;padding:0 10px}#sk{position:absolute;right:12px;bottom:3vh;font-size:12px;opacity:.7;color:#fff}
+</style></head><body>
+<div id="hud"><div class="c">⏱ <span id="tm">5:00</span></div><div class="c">৳ <span id="mo">0</span></div><div class="c"><span id="l1">🏍 fined</span> <span id="bf">0</span></div><div class="c" id="heat"><span id="l2">📰 Press heat</span><i id="hb"></i></div><div class="c" id="mt" style="pointer-events:auto;cursor:pointer">🔊</div></div>
+<div id="news"></div><div id="pr"></div><div id="panel" hidden></div><div id="touch" aria-label="Touch game controls"><div class="tc" id="move"><button data-key="KeyW" style="grid-column:2">▲</button><button data-key="KeyA">◀</button><button data-key="KeyS">▼</button><button data-key="KeyD">▶</button></div><div class="tc" id="actions"><button data-key="ShiftLeft">🏃</button><button id="inspectTouch">🔎</button><button class="wide" id="helpTouch">Tap a vehicle to stop</button></div></div>
+<div class="ov" id="conf" hidden></div>
+<div class="ov" id="ov"><div class="box"><h2>🚓 Dhaka Traffic Cop: Bike Crackdown</h2>
+<p>Every biker is guilty until fined. Stop them, check licence, plate, helmet… and if they’re somehow clean, invent an excuse.</p>
+<p><b>W/S</b> walk · <b>A/D</b> or drag mouse to turn · <b>Shift</b> run<br><b>Click</b> a vehicle to wave it over · walk up &amp; press <b>E</b> (or click it) to inspect<br>A <b style="color:#ff6b6b">red marker</b> = the press is filming that biker. Let him escape and you’ll face the cameras.<br>Taking a bribe with a 📷 reporter nearby = jail. Fining a rickshaw puller = road-block protest, a street brawl &amp; a ৳5,000 fine on YOU. <b style="color:#4ade80">🚩 Party-flag bikers</b> are untouchable. Click / Space skips cutscenes. Reckless rickshaws cause accidents: go help.</p>
+<p><button data-l="en">English</button> <button data-l="bn">বাংলা</button></p><button id="go">Start 5-minute shift</button></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const T=THREE,R=Math.random,rr=(a,b)=>a+R()*(b-a),pick=a=>a[R()*a.length|0],$=i=>document.getElementById(i);
+const S={bdt:0,heat:5,time:300,fined:0,paused:true,over:false,t:0,nw:8},V=[],K={};
+let cur=null,near=null,yaw=-Math.PI/2,W=null;
+const scene=new T.Scene();scene.background=new T.Color(0x9fd0e8);scene.fog=new T.Fog(0x9fd0e8,40,170);
+const cam=new T.PerspectiveCamera(60,innerWidth/innerHeight,.1,300);
+const ren=new T.WebGLRenderer({antialias:true});ren.setSize(innerWidth,innerHeight);ren.setPixelRatio(Math.min(devicePixelRatio,2));document.body.prepend(ren.domElement);
+const cv=ren.domElement;
+scene.add(new T.HemisphereLight(0xffffff,0x667766,.95));
+const sun=new T.DirectionalLight(0xffffff,.7);sun.position.set(30,60,20);scene.add(sun);
+const mc={},M=c=>mc[c]||(mc[c]=new T.MeshStandardMaterial({color:c,flatShading:true,roughness:.9}));
+const bx=(p,w,h,d,c,x,y,z)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),M(c));m.position.set(x,y,z);p.add(m);return m};
+const wh=(p,r,w,x,y,z)=>{const m=new T.Mesh(new T.CylinderGeometry(r,r,w,8),M(0x111111));m.rotation.z=Math.PI/2;m.position.set(x,y,z);p.add(m)};
+// ---- world
+bx(scene,400,.2,400,0x6a9a5a,0,-.15,0);bx(scene,20,.2,330,0x2b2f36,0,0,0);
+[-1,1].forEach(s=>{bx(scene,10,.5,330,0x9a9a9a,s*15,0,0);
+ for(let z=-160;z<=160;z+=13){const w=rr(8,14),h=rr(8,30);bx(scene,w,h,10,pick([0xe8d5b7,0xc9d6df,0xf2b5a0,0xb7d3a8,0xd8c3e8,0xf0e08a]),s*(24+w/2),h/2,z);
+  bx(scene,w*.8,.6,10.2,0x445566,s*(24+w/2),h*.6,z);bx(scene,w*.8,.6,10.2,0x445566,s*(24+w/2),h*.3,z)}
+ for(let z=-155;z<=155;z+=14){bx(scene,.4,1.6,.4,0x6b4a2b,s*11.5,1,z);const c=new T.Mesh(new T.ConeGeometry(1.5,3.5,5),M(0x2e8b3d));c.position.set(s*11.5,3.4,z);scene.add(c)}});
+for(let z=-160;z<=160;z+=8){bx(scene,.25,.02,3,0xf0f0f0,0,.11,z);bx(scene,.15,.02,2.5,0xdddddd,-4.5,.11,z);bx(scene,.15,.02,2.5,0xdddddd,4.5,.11,z)}
+// ---- cop
+const cop=new T.Group(),arm=new T.Group();
+[-.2,.2].forEach(x=>bx(cop,.3,.9,.3,0x334466,x,.45,0));
+bx(cop,.8,.9,.45,0xf2f2f2,0,1.35,0);bx(cop,.4,.4,.4,0xe0b090,0,2,0);bx(cop,.46,.16,.46,0xffffff,0,2.27,0);bx(cop,.2,.1,.3,0x111111,0,2.2,.3);
+bx(cop,.22,.8,.22,0xf2f2f2,-.55,1.3,0);arm.position.set(.55,1.7,0);bx(arm,.22,.8,.22,0xf2f2f2,0,-.35,0);bx(arm,.12,.12,.12,0xffff00,0,-.8,.1);cop.add(arm);
+cop.position.set(13,.25,0);scene.add(cop);
+// ---- vehicles
+const names={bike:'Motorbike',car:'Car',rick:'Rickshaw'};
+const quotes={bike:['Sir, I’m late for office!','Sir, my mother is sick…','Bhai, can we settle this here?','The helmet is at home, sir, I swear.','Sir, I’m a delivery rider, please!'],car:['Do you know who my uncle is?!','I’m a respectable citizen!'],rick:['Sir, my passenger is waiting…','Sir, I pedal 12 hours for ৳600…']};
+const excuses=[['Suspicious body language',1500],['Gave me a dangerous look',2000],['Bike seemed fast while standing still',1800],['Wrong vibes (cannot explain)',1200],['Dust on mirror = “obstruction”',900],['Looked like he might commit a crime',2500]];
+function mkV(type){
+ const g=new T.Group(),v={g,type,x:0,z:0,dir:1,sp:0,max:0,st:'go',lane:0,fines:0,wanted:0,ph:R()*9,rows:[]};g.userData.v=v;
+ const skin=pick([0xc68642,0x8d5524,0xe0ac69]),col=pick([0xd93a3a,0x3a7bd9,0xf2f2f2,0xe9a825,0x2fa84f,0x888888,0x222222]);
+ const row=(l,s,amt)=>v.rows.push({l,s,bad:amt>0,amt});
+ const L3=(l,a,b,ss,am)=>{const r=R(),i=r<a?0:r<b?1:2;row(l,ss[i],am[i]);return i};
+ const chk=(l,p,ok,bad,amt)=>{const o=R()<p;row(l,o?ok:bad,o?0:amt);return o};
+ v.plateNo=`DM-LA-${10+R()*89|0}-${1000+R()*8999|0}`;v.quote=pick(quotes[type]);v.brib=type=='bike'&&R()<.4?(5+R()*15|0)*100:0;
+ v.ex=[...excuses].sort(()=>R()-.5).slice(0,3).map(a=>({t:a[0],amt:a[1]}));
+ if(type=='car'){
+  L3('Driving licence',.88,.97,['VALID','EXPIRED','NOT SHOWN'],[0,2000,4000]);L3('Number plate',.9,.97,['CLEAR','FADED','MISSING'],[0,1000,2500]);chk('Seatbelt',.75,'ON','OFF',1000);chk('Papers',.9,'OK','EXPIRED',2000);
+  bx(g,2,.7,4.2,col,0,.7,0);bx(g,1.7,.65,2.2,0x9fc4e0,0,1.4,-.2);[-.7,.7].forEach(x=>{bx(g,.4,.2,.1,0xffffcc,x,.8,2.12);bx(g,.4,.2,.1,0xff2222,x,.8,-2.12)});bx(g,2.1,.2,.2,0x333333,0,.45,2.1);bx(g,2.1,.2,.2,0x333333,0,.45,-2.1);bx(g,.5,.2,.05,0xffe14d,0,.6,-2.14);bx(g,.4,.4,.4,skin,-.4,1.45,.2);if(R()<.5)bx(g,.4,.4,.4,skin,.4,1.45,.2);if(R()<.4)bx(g,.4,.4,.4,skin,0,1.45,-.7);
+  [[-1,1.4],[1,1.4],[-1,-1.4],[1,-1.4]].forEach(a=>wh(g,.38,.25,a[0]*1.05,.38,a[1]));
+ }else if(type=='bike'){
+  L3('Driving licence',.55,.8,['VALID','EXPIRED','NONE'],[0,3000,5000]);const pi=L3('Number plate (front, back, both sides, helmet)',.65,.85,['CLEAR','FADED','MISSING ON ALL SIDES'],[0,1000,2500]);
+  const hel=chk('Rider helmet',.55,'WEARING','NONE',2000),pil=R()<.4;let ph=1;if(pil)ph=chk('Pillion helmet',.4,'WEARING','NONE',1000);
+  chk('Mirrors',.6,'FITTED','MISSING',500);chk('Registration papers',.7,'OK','NOT SHOWN',2000);
+  bx(g,.35,.5,1.7,col,0,.7,0);wh(g,.38,.14,0,.38,.8);wh(g,.38,.14,0,.38,-.8);bx(g,.9,.08,.08,0x222222,0,1.05,.7);bx(g,.3,.12,.9,0x151515,0,1.0,-.35);bx(g,.4,.3,.5,pick([0xcc2222,0x2255cc,0x222222]),0,1.05,.3);bx(g,.3,.2,.15,0xffee88,0,1.0,.95);bx(g,.2,.1,.1,0xff2222,0,.95,-.95);bx(g,.12,.12,.8,0x888888,.22,.4,-.4);bx(g,.1,.1,.5,0x555555,-.16,.38,.8);if(pi<2){const pc=pi?0x9a9580:0xffe14d;bx(g,.34,.2,.04,pc,0,.62,1.05);bx(g,.34,.2,.04,pc,0,.8,-1.0);bx(g,.04,.18,.34,pc,.19,.8,-.1);bx(g,.04,.18,.34,pc,-.19,.8,-.1)}
+  const sc=pick([0x335577,0x884433,0x777777,0x225522]);bx(g,.5,.75,.4,sc,0,1.3,-.05);bx(g,.34,.34,.34,skin,0,1.9,-.02);if(hel){bx(g,.42,.26,.42,0x111111,0,2.02,-.02);if(pi<2)bx(g,.24,.1,.04,pi?0x9a9580:0xffe14d,0,2.02,-.25)}
+  if(pil){bx(g,.5,.7,.4,pick([0xaa3377,0x336677,0x999933]),0,1.25,-.6);bx(g,.34,.34,.34,skin,0,1.8,-.6);if(ph)bx(g,.42,.26,.42,0xcc3333,0,1.92,-.6)}
+ }else{
+  chk('Registration',.8,'VALID','EXPIRED',1500);chk('Passenger load',.8,'OK','OVERLOADED',1000);
+  wh(g,.45,.1,0,.45,1.5);wh(g,.45,.1,-.75,.45,-.7);wh(g,.45,.1,.75,.45,-.7);bx(g,1.3,.4,1.5,col,0,.85,-.7);bx(g,1.5,.1,1.6,pick([0xff3b6b,0xffb300,0x00a8e8]),0,2.1,-.7);
+  bx(g,.1,1.1,.1,0x333333,-.7,1.55,-.2);bx(g,.1,1.1,.1,0x333333,.7,1.55,-.2);bx(g,.4,.4,.4,skin,-.25,1.6,-.7);if(R()<.6)bx(g,.4,.4,.4,skin,.25,1.6,-.7);
+  bx(g,.5,.5,.4,pick([0xeeeeee,0x88aacc]),0,1.5,.8);bx(g,.55,.55,.45,pick([0x2f7f4f,0x7f2f2f,0x2f4f7f]),0,.95,.8);bx(g,.4,.12,.4,0xdd3333,0,2.08,.8);bx(g,.8,.1,.5,0x222222,0,1.15,.7);bx(g,1.4,1,.06,0xff3b6b,0,1.35,-1.46);bx(g,1,.6,.07,0xffd400,0,1.35,-1.47);bx(g,.5,.3,.08,0x1fb35a,0,1.35,-1.48);[-1,1].forEach(s=>{bx(g,.06,.9,.9,0x00a8e8,s*.68,1.3,-.7);bx(g,.07,.3,.5,0xffd400,s*.69,1.3,-.7);bx(g,.1,.15,1.3,0x555555,s*.75,.6,-.7);const h=bx(g,.1,.9,1.7,0xcc2244,s*.8,2.0,-.7);h.rotation.z=-s*.5});bx(g,.2,.2,.2,0xdddd00,.4,1.15,1.1);bx(g,.34,.34,.34,skin,0,1.85,.8);bx(g,.1,.1,1,0x222222,0,.8,1.1);
+ }
+ return v}
+function spawn(type){const v=mkV(type);v.lane=type=='car'?pick([-2.5,2.5]):type=='rick'?pick([-6.5,6.5]):pick([-6.5,-2.5,2.5,6.5]);v.dir=v.lane<0?1:-1;
+ v.max=type=='car'?rr(8,11):type=='bike'?rr(9,13):rr(3.5,5);if(type=='rick'&&R()<.5){v.reck=1;v.max=rr(7,9)}v.nl=rr(4,12);v.sp=v.max;v.x=v.lane;
+ for(let k=0;k<30;k++){v.z=rr(-150,150);if(!V.some(b=>b.lane==v.lane&&Math.abs(b.z-v.z)<7))break}
+ v.g.rotation.y=v.dir>0?0:Math.PI;scene.add(v.g);V.push(v)}
+for(let i=0;i<16;i++)spawn('bike');for(let i=0;i<11;i++)spawn('car');for(let i=0;i<8;i++)spawn('rick');
+let L='en',muted=false;S.ac=20;S.prot=0;
+const BN={'Walk closer to inspect.':'পরিদর্শনের জন্য কাছে যান।','📺 Press: “Cop harasses innocent motorist!”':'📺 প্রেস: “নিরীহ চালককে হয়রানি করছে পুলিশ!”','📺 Press cheers: “Finally, a cop who does his job!”':'📺 প্রেস: “অবশেষে একজন পুলিশ কাজ করছে!”','📺 Press: “Why is this biker walking free?”':'📺 প্রেস: “এই বাইকার ছাড়া পেল কেন?”','You stopped that dangerous biker and let him go without a single fine? Explain yourself!':'বিপজ্জনক বাইকারকে থামিয়ে জরিমানা ছাড়াই ছেড়ে দিলেন? ব্যাখ্যা দিন!','📺 “Dangerous biker ESCAPED on camera!”':'📺 “ক্যামেরার সামনে বিপজ্জনক বাইকার পালিয়ে গেল!”','Why did you let that dangerous biker get away?! Whose side are you on?':'ওই বিপজ্জনক বাইকারকে পালাতে দিলেন কেন?! আপনি কার পক্ষে?','📺 BREAKING: Press is filming a “dangerous” biker (red marker). Fine him before he escapes!':'📺 ব্রেকিং: সাংবাদিকরা একজন “বিপজ্জনক” বাইকারকে ফিল্ম করছে (লাল চিহ্ন)। পালানোর আগে জরিমানা করুন!','🎤 PRESS CONFERENCE':'🎤 সংবাদ সম্মেলন','“We will fine every biker twice as hard!”':'“প্রতিটি বাইকারকে দ্বিগুণ জরিমানা করা হবে!”','“It was a rare mistake, sir.”':'“এটা বিরল ভুল ছিল, স্যার।”','“No comment.”':'“নো কমেন্ট।”','🚫 SUSPENDED':'🚫 সাময়িক বরখাস্ত','The press destroyed you. You’ve been transferred to Bandarban.':'প্রেস আপনাকে শেষ করেছে। বান্দরবানে বদলি!','🏁 Shift over':'🏁 শিফট শেষ','The department calls you a hero. The bikers call you something else.':'বিভাগ আপনাকে হিরো বলছে। বাইকাররা অন্য কিছু বলছে।','A solid day of “law enforcement”.':'“আইন প্রয়োগের” একটি ভালো দিন।','Rookie numbers. Bikers got away with riding to work.':'নতুনদের মতো ফল। বাইকাররা অফিসে চলে গেল।','Collected':'আদায়','Bikers fined':'বাইকার জরিমানা','New shift':'নতুন শিফট','⛓ JAILED':'⛓ জেল','A reporter caught you taking a bribe on camera. Front page tomorrow.':'সাংবাদিক ক্যামেরায় ঘুষ নেওয়া ধরেছে। কালকে প্রথম পাতায়!','Nobody saw it. The money is safe… for now.':'কেউ দেখেনি। টাকা নিরাপদ… আপাতত।','Fine ৳':'জরিমানা ৳','✔ fined':'✔ জরিমানা হয়েছে','Nothing wrong? A good cop always finds something.':'কিছু ভুল নেই? ভালো পুলিশ সবসময় কিছু না কিছু খুঁজে পায়।','Let him go →':'ছেড়ে দিন →','Take bribe':'ঘুষ নিন','Rider whispers: “Sir, take this and let me go.”':'চালক ফিসফিস করে: “স্যার, এটা রাখেন, ছেড়ে দেন।”','⚠ Fining a rickshaw puller triggers a city-wide protest!':'⚠ রিকশাচালককে জরিমানা করলে শহরজুড়ে ধর্মঘট হবে!','Driving licence':'ড্রাইভিং লাইসেন্স','Number plate (front, back, both sides, helmet)':'নম্বরপ্লেট (সামনে, পেছনে, দুই পাশ, হেলমেট)','Number plate':'নম্বরপ্লেট','Rider helmet':'চালকের হেলমেট','Pillion helmet':'পেছনের আরোহীর হেলমেট','Mirrors':'আয়না','Registration papers':'রেজিস্ট্রেশন কাগজ','Registration':'রেজিস্ট্রেশন','Passenger load':'যাত্রী সংখ্যা','Seatbelt':'সিটবেল্ট','Papers':'কাগজপত্র','>VALID<':'>বৈধ<','>EXPIRED<':'>মেয়াদোত্তীর্ণ<','>NOT SHOWN<':'>দেখায়নি<','>NONE<':'>নেই<','>CLEAR<':'>স্পষ্ট<','>FADED<':'>ঝাপসা<','>MISSING ON ALL SIDES<':'>সব পাশে নেই<','>MISSING<':'>নেই<','>WEARING<':'>পরা আছে<','>FITTED<':'>লাগানো<','>OK<':'>ঠিক আছে<','>OVERLOADED<':'>অতিরিক্ত যাত্রী<','>ON<':'>বাঁধা<','>OFF<':'>বাঁধা নেই<','Motorbike':'মোটরবাইক','Car':'গাড়ি','Rickshaw':'রিকশা','E — inspect ':'E — পরিদর্শন: ','Click a vehicle to wave it over':'গাড়িতে ক্লিক করে থামান','📷 Press target: follow the red marker!':'📷 লাল চিহ্ন অনুসরণ করুন!','📷 Press nearby!':'📷 সাংবাদিক কাছে!','🚨 ACCIDENT! A reckless rickshaw crashed — go help!':'🚨 দুর্ঘটনা! বেপরোয়া রিকশা ধাক্কা খেয়েছে — সাহায্য করুন!','Accident cleared. Citizens praise you.':'দুর্ঘটনা সামলানো হয়েছে। জনগণ প্রশংসা করছে।','📺 “Cop ignored a road accident!”':'📺 “দুর্ঘটনা উপেক্ষা করল পুলিশ!”','✊ ALL RICKSHAW PULLERS STRIKE! Road blocked!':'✊ সব রিকশাচালকের ধর্মঘট! রাস্তা বন্ধ!','Rickshaw pullers are protesting!':'রিকশাচালকরা বিক্ষোভ করছে!','✊ PROTEST':'✊ বিক্ষোভ','Every rickshaw puller in Dhaka marched on your office. You’re fired!':'ঢাকার সব রিকশাচালক আপনার অফিসে মিছিল করেছে। আপনি বরখাস্ত!','Suspicious body language':'সন্দেহজনক হাবভাব','Gave me a dangerous look':'আমার দিকে বিপজ্জনক চোখে তাকিয়েছে','Bike seemed fast while standing still':'দাঁড়িয়ে থেকেও বাইক দ্রুত মনে হয়েছে','Wrong vibes (cannot explain)':'খারাপ ভাইব (ব্যাখ্যা নেই)','Dust on mirror = “obstruction”':'আয়নায় ধুলো = “বাধা সৃষ্টি”','Looked like he might commit a crime':'অপরাধ করতে পারে মনে হয়েছে','Sir, I’m late for office!':'স্যার, অফিসে দেরি হয়ে যাচ্ছে!','Sir, my mother is sick…':'স্যার, আমার মা অসুস্থ…','Bhai, can we settle this here?':'ভাই, এখানেই মিটমাট করা যায় না?','The helmet is at home, sir, I swear.':'হেলমেট বাসায় রেখে এসেছি স্যার, কসম।','Sir, I’m a delivery rider, please!':'স্যার, আমি ডেলিভারি রাইডার, প্লিজ!','Do you know who my uncle is?!':'আমার মামা কে জানেন?!','I’m a respectable citizen!':'আমি একজন সম্মানিত নাগরিক!','Sir, my passenger is waiting…':'স্যার, যাত্রী অপেক্ষা করছে…','Sir, I pedal 12 hours for ৳600…':'স্যার, ১২ ঘণ্টা প্যাডেল করে ৬০০ টাকা পাই…','🏍 fined':'🏍 জরিমানা','📰 Press heat':'📰 প্রেসের চাপ'};
+const BK=Object.keys(BN).sort((a,b)=>b.length-a.length),tr=s=>L=='bn'?BK.reduce((a,k)=>a.split(k).join(BN[k]),s):s;
+let AC;const au=()=>AC||(AC=new(window.AudioContext||window.webkitAudioContext)());
+function tone(f,d,ty,v,f2){if(muted)return;try{const a=au(),o=a.createOscillator(),g=a.createGain(),n=a.currentTime;o.type=ty||'sine';o.frequency.setValueAtTime(f,n);if(f2)o.frequency.linearRampToValueAtTime(f2,n+d);g.gain.setValueAtTime(v||.1,n);g.gain.exponentialRampToValueAtTime(.001,n+d);o.connect(g).connect(a.destination);o.start();o.stop(n+d)}catch(e){}}
+function noise(d,v){if(muted)return;try{const a=au(),b=a.createBuffer(1,a.sampleRate*d,a.sampleRate),x=b.getChannelData(0);for(let i=0;i<x.length;i++)x[i]=(R()*2-1)*(1-i/x.length);const s=a.createBufferSource(),g=a.createGain();g.gain.value=v||.3;s.buffer=b;s.connect(g).connect(a.destination);s.start()}catch(e){}}
+const SF={whistle:()=>{tone(2600,.25,'sine',.12,3000);setTimeout(()=>tone(2800,.3,'sine',.12,2400),280)},horn:()=>tone(330,.4,'sawtooth',.04),cash:()=>{tone(1200,.1,'square',.06);setTimeout(()=>tone(1800,.25,'square',.06),100)},crash:()=>{noise(.6,.5);tone(90,.5,'sawtooth',.2,40)},siren:()=>{tone(700,.4,'sawtooth',.08,1000);setTimeout(()=>tone(1000,.4,'sawtooth',.08,700),400)},news:()=>{tone(880,.12,'triangle',.1);setTimeout(()=>tone(1175,.2,'triangle',.1),130)},crowd:()=>noise(2,.25),bell:()=>tone(2000,.5,'sine',.06)};
+const sfx=k=>SF[k]&&SF[k]();
+function say(s,p){if(muted)return;try{const u=new SpeechSynthesisUtterance(tr(s).replace(/[^\p{L}\p{N}\s.,!?’“”-]/gu,''));u.lang=L=='bn'?'bn-BD':'en-IN';u.pitch=p||1;u.rate=1.05;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){}}
+const RP=[];for(let i=0;i<5;i++){const g=new T.Group();bx(g,.7,.9,.4,0x2fa8ff,0,1.3,0);[-.17,.17].forEach(x=>bx(g,.3,.9,.3,0x333333,x,.45,0));bx(g,.36,.36,.36,0xd9a066,0,2,0);bx(g,.5,.35,.6,0x111111,.45,1.8,.3);bx(g,.1,.1,.1,0xff2222,.45,2.05,.6);bx(g,.3,.3,.3,0xffee00,0,2.6,0);g.position.set(i%2?-13.5:13.5,.25,rr(-130,130));scene.add(g);RP.push({g,dir:R()<.5?1:-1,sp:rr(1.5,3)})}
+function crash(a,b){a.st=b.st='crash';S.ac=S.t+30;S.crash={a,b,t:S.t+14};[a,b].forEach(v=>v.sm=bx(v.g,.9,.9,.9,0x666666,0,3,0));sfx('crash');setTimeout(()=>sfx('siren'),500);news('🚨 ACCIDENT! A reckless rickshaw crashed — go help!','bad')}
+function fix(c){[c.a,c.b].forEach(v=>{v.g.remove(v.sm);v.st='rel'});c.a.z-=c.a.dir*5;S.crash=null}
+function bribe(v){v.taken=1;sfx('cash');S.bdt+=v.brib;const seen=v.wanted||RP.some(r=>Math.hypot(r.g.position.x-cop.position.x,r.g.position.z-cop.position.z)<22);if(seen){end('⛓ JAILED','A reporter caught you taking a bribe on camera. Front page tomorrow.');return}news('Nobody saw it. The money is safe… for now.','good');v.fines++;release(v)}
+function extra(dt){
+ for(const v of V)if(v.reck&&v.st=='go'&&S.t>v.nl){v.nl=S.t+rr(5,11);v.lane=pick([-6.5,-2.5,2.5,6.5].filter(l=>l*v.dir<0&&l!=v.lane))}
+ if(S.t>S.ac)for(const a of V){if(!a.reck||a.st!='go')continue;for(const b of V){if(b===a||b.dir!=a.dir||b.st!='go'&&b.st!='rel')continue;if(Math.abs(a.x-b.x)<1.4&&Math.abs(a.z-b.z)<3){crash(a,b);break}}if(S.crash)break}
+ const c=S.crash;if(c){if(Math.hypot(c.a.x-cop.position.x,c.a.z-cop.position.z)<9){heat(-5);news('Accident cleared. Citizens praise you.','good');fix(c)}else if(S.t>c.t){heat(8);news('📺 “Cop ignored a road accident!”','bad');fix(c)}}
+ if(S.prot){S.prot-=dt;if(S.prot<=0){S.prot=0;end('✊ PROTEST','Every rickshaw puller in Dhaka marched on your office. You’re fired!')}}
+ for(const v of V)if(v.st=='strike')v.g.position.y=.1+Math.abs(Math.sin(S.t*8+v.ph))*.2;
+ for(const r of RP){r.g.position.z+=r.dir*r.sp*dt;if(Math.abs(r.g.position.z)>140)r.dir*=-1;r.g.rotation.y=r.dir>0?0:Math.PI}
+ if(R()<dt*.7)sfx('horn');if(R()<dt*.3)sfx('bell')}
+// press beacon
+const bc=new T.Group();const cone=new T.Mesh(new T.ConeGeometry(.7,1.4,4),new T.MeshBasicMaterial({color:0xff2222}));cone.rotation.x=Math.PI;bc.add(cone);
+const beam=new T.Mesh(new T.CylinderGeometry(.12,.12,40,6),new T.MeshBasicMaterial({color:0xff3333,transparent:true,opacity:.35}));beam.position.y=20;bc.add(beam);bc.visible=false;scene.add(bc);
+// ---- game logic
+function news(t,c){sfx('news');say(t);const d=document.createElement('div');d.className='n '+(c||'');d.textContent=tr(t);$('news').prepend(d);setTimeout(()=>d.remove(),6500);while($('news').children.length>4)$('news').lastChild.remove()}
+function end(t,m){S.over=S.paused=true;$('panel').hidden=true;$('conf').hidden=true;const o=$('ov');o.hidden=false;o.innerHTML=tr(`<div class="box"><h2>${t}</h2><p>${m}</p><p>Collected <b>৳${S.bdt.toLocaleString()}</b> · Bikers fined <b>${S.fined}</b></p><button onclick="location.reload()">New shift</button></div>`);say(t)}
+function heat(d){S.heat=Math.max(0,Math.min(100,S.heat+d));if(S.heat>=100&&!S.over)end('🚫 SUSPENDED','The press destroyed you. You’ve been transferred to Bandarban.')}
+function conf(q){if(S.over)return;S.paused=true;const c=$('conf');c.hidden=false;
+ c.innerHTML=tr(`<div class="box"><h3>🎤 PRESS CONFERENCE</h3><p class="q">“${q}”</p>`+[['“We will fine every biker twice as hard!”',-8],['“It was a rare mistake, sir.”',-3],['“No comment.”',6]].map(a=>`<button data-h="${a[1]}">${a[0]}</button><br>`).join('')+'</div>');say(q)}
+$('conf').onclick=e=>{const b=e.target.closest('button');if(!b)return;$('conf').hidden=true;S.paused=false;heat(+b.dataset.h)};
+function clearW(v){v.wanted=0;S.nw=S.t+18}
+function collect(v,amt,ex){sfx('cash');S.bdt+=amt;if(!v.fines&&v.type=='bike')S.fined++;v.fines++;
+ if(v.type=='bike')heat(ex?-2:-4);else if(ex){heat(12);news('📺 Press: “Cop harasses innocent motorist!”','bad')}
+ if(v.wanted){clearW(v);heat(-10);news('📺 Press cheers: “Finally, a cop who does his job!”','good')}}
+function release(v){if(v.type=='bike'&&!v.fines){heat(10);news('📺 Press: “Why is this biker walking free?”','bad');
+  if(v.wanted){clearW(v);heat(15);conf('You stopped that dangerous biker and let him go without a single fine? Explain yourself!')}}
+ v.st='rel';cur=null;$('panel').hidden=true}
+function inspect(v){cur=v;render();say(v.quote,v.type=='bike'?1.3:.8)}
+function render(){const v=cur,P=$('panel');P.hidden=false;
+ P.innerHTML=tr(`<h3>${names[v.type]} · ${v.plateNo}</h3><p class="q">“${v.quote}”</p>`+
+ v.rows.map((r,i)=>`<div class="row"><span>${r.l}</span><b class="${r.bad?'bad':'ok'}">${r.s}</b>${r.bad?(r.paid?'<em>✔ fined</em>':`<button data-i="${i}">Fine ৳${r.amt}</button>`):''}</div>`).join('')+
+ `<h4>Nothing wrong? A good cop always finds something.</h4>`+v.ex.map((e,i)=>`<button class="ex" data-e="${i}" ${e.paid?'disabled':''}>${e.t} — ৳${e.amt}</button>`).join('')+`${v.brib&&!v.taken?`<p>💵 Rider whispers: “Sir, take this and let me go.”</p><button class="ex" id="brb" style="background:#16a34a">💵 Take bribe ৳${v.brib}</button>`:''}${v.type=='rick'?'<p class="bad">⚠ Fining a rickshaw puller triggers a city-wide protest!</p>':''}<button id="rel">Let him go →</button>`)}
+$('panel').onclick=e=>{const b=e.target.closest('button');if(!b||!cur)return;const v=cur;
+ if(b.dataset.i){const r=v.rows[+b.dataset.i];r.paid=1;collect(v,r.amt,0)}
+ else if(b.dataset.e){const x=v.ex[+b.dataset.e];x.paid=1;collect(v,x.amt,1)}
+ else if(b.id=='rel')release(v);else if(b.id=='brb')bribe(v);
+ if(cur)render()};
+function tryI(){if(near&&!S.paused&&!S.over)inspect(near)}
+// Hold touch buttons to walk, turn, and run. Releasing always clears movement.
+const touchRoot=document.getElementById('touch');touchRoot.querySelectorAll('[data-key]').forEach(b=>{const k=b.dataset.key;const down=e=>{e.preventDefault();K[k]=1;b.classList.add('down');try{b.setPointerCapture(e.pointerId)}catch(x){}};const up=e=>{e.preventDefault();K[k]=0;b.classList.remove('down')};b.addEventListener('pointerdown',down);['pointerup','pointercancel','lostpointercapture'].forEach(n=>b.addEventListener(n,up))});document.getElementById('inspectTouch').addEventListener('pointerdown',e=>{e.preventDefault();tryI()});
+// ---- input
+addEventListener('keydown',e=>{K[e.code]=1;if(e.code=='KeyE')tryI()});addEventListener('keyup',e=>K[e.code]=0);
+let dn=[0,0];cv.addEventListener('pointerdown',e=>dn=[e.clientX,e.clientY]);
+cv.addEventListener('pointermove',e=>{if(e.buttons&1)yaw-=e.movementX*.005});
+const ray=new T.Raycaster(),mv=new T.Vector2();let wt=0;
+cv.addEventListener('pointerup',e=>{if(S.paused||Math.hypot(e.clientX-dn[0],e.clientY-dn[1])>6)return;
+ mv.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);ray.setFromCamera(mv,cam);
+ const h=ray.intersectObjects(V.map(v=>v.g),true)[0];if(!h)return;let o=h.object;while(!o.userData.v)o=o.parent;const v=o.userData.v;
+ const d=Math.hypot(v.x-cop.position.x,v.z-cop.position.z);
+ if(v.st=='go'&&d<70){v.st='pull';wt=.9;sfx('whistle')}else if(v.st=='park'){d<8?inspect(v):news('Walk closer to inspect.')}});
+const OVE=$('ov').innerHTML,OVB=`<div class="box"><h2>🚓 ঢাকা ট্রাফিক পুলিশ: বাইক ক্র্যাকডাউন</h2><p>প্রতিটি বাইকার জরিমানার আগ পর্যন্ত দোষী। থামান, লাইসেন্স, নম্বরপ্লেট, হেলমেট দেখুন… সব ঠিক থাকলে বাহানা বানান।</p><p><b>W/S</b> হাঁটুন · <b>A/D</b> বা মাউস টেনে ঘুরুন · <b>Shift</b> দৌড়ান<br>গাড়িতে <b>ক্লিক</b> করে থামান · কাছে গিয়ে <b>E</b> চাপুন<br><b style="color:#ff6b6b">লাল চিহ্ন</b> = সাংবাদিকরা ওই বাইকারকে ফিল্ম করছে; পালাতে দিলে সংবাদ সম্মেলনে পড়বেন।<br>📷 সাংবাদিক কাছে থাকলে ঘুষ নিলে জেল। রিকশাচালককে জরিমানা করলে ধর্মঘট, চাকরি যাবে। বেপরোয়া রিকশায় দুর্ঘটনা হয়: সাহায্য করুন।</p><p><button data-l="en">English</button> <button data-l="bn">বাংলা</button></p><button id="go">৫ মিনিটের শিফট শুরু</button></div>`;
+function setLang(l){L=l;$('ov').innerHTML=l=='bn'?OVB:OVE;$('l1').textContent=tr('🏍 fined');$('l2').textContent=tr('📰 Press heat')}
+$('mt').onclick=()=>{muted=!muted;$('mt').textContent=muted?'🔇':'🔊';if(muted)try{speechSynthesis.cancel()}catch(e){}};
+$('ov').onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.l)setLang(b.dataset.l);else if(b.id=='go'){$('ov').hidden=true;S.paused=false;try{au().resume()}catch(x){}}};
+addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight)});
+// ---- loop
+function step(dt){
+ const f=(K.KeyW||K.ArrowUp?1:0)-(K.KeyS||K.ArrowDown?1:0),tn=(K.KeyA||K.ArrowLeft?1:0)-(K.KeyD||K.ArrowRight?1:0);
+ yaw+=tn*1.8*dt;const fx=Math.sin(yaw),fz=Math.cos(yaw),sp=(K.ShiftLeft?9:5)*dt*f;
+ cop.position.x=Math.max(-19,Math.min(19,cop.position.x+fx*sp));cop.position.z=Math.max(-140,Math.min(140,cop.position.z+fz*sp));
+ cop.position.y=(Math.abs(cop.position.x)>10?.25:.1)+(f?Math.abs(Math.sin(S.t*10))*.08:0);cop.rotation.y=yaw;
+ wt=Math.max(0,wt-dt);arm.rotation.x+=((wt>0?-1.6:0)-arm.rotation.x)*Math.min(1,dt*10);
+ for(const v of V){
+  let tgt=v.st=='park'||v.st=='strike'||v.st=='crash'?0:v.max;
+  if(v.st=='pull'||blk(v))tgt=0;
+  else if(v.st!='park'&&v.st!='strike'&&v.st!='crash'&&!v.reck)for(const b of V){if(b===v||b.dir!=v.dir||Math.abs(b.x-v.x)>1.5)continue;const gp=(b.z-v.z)*v.dir;if(gp>0&&gp<8)tgt=Math.min(tgt,gp<4.5?0:b.sp)}
+  v.sp+=Math.sign(tgt-v.sp)*Math.min(Math.abs(tgt-v.sp),(tgt<v.sp?14:5)*dt);
+  v.z+=v.dir*v.sp*dt;
+  if(v.z*v.dir>155){if(v.wanted){clearW(v);heat(25);news('📺 “Dangerous biker ESCAPED on camera!”','bad');conf('Why did you let that dangerous biker get away?! Whose side are you on?')}v.z=-155*v.dir;if(v.st=='pull')v.st='go'}
+  const pk=v.st=='pull'||v.st=='park',tx=pk?8.8:v.st=='strike'||v.st=='crash'?v.x:v.lane+(v.type=='bike'?Math.sin(S.t*1.4+v.ph)*.6:0);
+  v.x+=(tx-v.x)*Math.min(1,dt*(v.st=='pull'?1.5:3));
+  if(v.st=='pull'&&v.sp<.3&&Math.abs(v.x-8.8)<.4){v.st='park';v.sp=0}
+  if(v.st=='rel'&&Math.abs(v.x-v.lane)<.8)v.st='go';
+  v.g.position.set(v.x,.1,v.z);v.g.rotation.z=v.type=='bike'?Math.cos(S.t*1.4+v.ph)*.08:0}
+ extra(dt);W=V.find(v=>v.wanted)||null;
+ if(!W&&S.t>S.nw){const c=V.filter(v=>v.type=='bike'&&v.st=='go'&&Math.abs(v.z)<100);if(c.length){W=pick(c);W.wanted=1;news('📺 BREAKING: Press is filming a “dangerous” biker (red marker). Fine him before he escapes!','bad')}}
+ bc.visible=!!W;if(W){bc.position.set(W.x,4.5+Math.sin(S.t*4)*.3,W.z);cone.rotation.y+=dt*3}
+ near=null;let nd=8;for(const v of V)if(v.st=='park'){const d=Math.hypot(v.x-cop.position.x,v.z-cop.position.z);if(d<nd){nd=d;near=v}}
+ S.heat=Math.max(0,S.heat-.25*dt);S.time-=dt;
+ if(S.time<=0){S.time=0;end('🏁 Shift over',S.bdt>=30000?'The department calls you a hero. The bikers call you something else.':S.bdt>=10000?'A solid day of “law enforcement”.':'Rookie numbers. Bikers got away with riding to work.')}
+ $('tm').textContent=(S.time/60|0)+':'+String(S.time%60|0).padStart(2,'0');$('mo').textContent=S.bdt.toLocaleString();$('bf').textContent=S.fined;$('hb').style.width=Math.max(3,S.heat)+'%';
+ $('pr').textContent=tr((near?`E — inspect ${names[near.type]} ${near.plateNo}`:W?'📷 Press target: follow the red marker!':'Click a vehicle to wave it over')+(RP.some(r=>Math.hypot(r.g.position.x-cop.position.x,r.g.position.z-cop.position.z)<22)?'  📷 Press nearby!':''));
+}
+/* ===== UPGRADE PACK ===== */
+let CS=null,B=null,F=null,FX=0,AM=null;S.pc=0;const CQ=[],PA=[],PM={},SC={},PG=new T.BoxGeometry(.2,.2,.2);
+const cbEl=document.createElement('div');cbEl.id='cb';cbEl.innerHTML='<div class="bar t"></div><div class="bar b"></div><div id="ct"></div><div id="cs2"></div><div id="sk">click / Space = skip</div>';document.body.appendChild(cbEl);
+const skipC=()=>{if(CS)CS.t=CS.dur};cbEl.onclick=skipC;addEventListener('keydown',e=>{if(e.code=='Space'&&CS){e.preventDefault();skipC()}});
+function cine(o){CQ.push(o);if(!CS)nextC()}
+function nextC(){CS=CQ.shift()||null;const b=document.body;if(!CS){b.classList.remove('cs');return}CS.t=0;CS.nx=0;CS.ph=-1;CS.p=new T.Vector3();CS.l=new T.Vector3();b.classList.add('cs');$('ct').textContent=tr(CS.title||'');$('cs2').textContent=tr(CS.sub||'');CS.init&&CS.init();if(CS.sfx)sfx(CS.sfx)}
+function csStep(dt){if(S.over){CQ.length=0;CS=null;document.body.classList.remove('cs');return}const c=CS;c.t+=dt;const t=Math.min(c.t,c.dur);c.cam(t/c.dur,t,c.p,c.l);c.upd&&c.upd(t,dt);if(c.t>=c.dur){c.end&&c.end();nextC()}}
+const orb=(f,r,h,a0,a1)=>(k,t,p,l)=>{const c=f(),a=a0+(a1-a0)*k,q=r*(1-.25*k);p.set(c.x+Math.sin(a)*q,h,c.z+Math.cos(a)*q);l.set(c.x,1.3,c.z)};
+const ez=x=>x<0?0:x>1?1:x*(2-x);
+function burst(x,y,z,c,n,s){s=s||4;const m0=PM[c]||(PM[c]=new T.MeshBasicMaterial({color:c}));for(let i=0;i<n;i++){const m=new T.Mesh(PG,m0);m.position.set(x,y,z);scene.add(m);PA.push({m,vx:rr(-s,s),vy:rr(2,s*1.6),vz:rr(-s,s),l:rr(.5,1.1)})}}
+function spr(txt,bg,fg,sw){const k=txt+bg;let m=SC[k];if(!m){const c=document.createElement('canvas');c.width=400;c.height=64;const x=c.getContext('2d');x.fillStyle=bg;x.beginPath();if(x.roundRect)x.roundRect(2,2,396,60,14);else x.rect(2,2,396,60);x.fill();x.fillStyle=fg||'#fff';x.font='bold 27px system-ui,sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(txt,200,34);m=SC[k]=new T.SpriteMaterial({map:new T.CanvasTexture(c),depthTest:false,transparent:true})}const s=new T.Sprite(m);sw=sw||3.4;s.scale.set(sw,sw*64/400,1);s.renderOrder=10;return s}
+function plateTex(txt,faded){const p=txt.split('-'),c=document.createElement('canvas');c.width=256;c.height=100;const x=c.getContext('2d');x.fillStyle=faded?'#b9b48a':'#ffe14d';x.fillRect(0,0,256,100);x.strokeStyle='#111';x.lineWidth=6;x.strokeRect(3,3,250,94);x.fillStyle=faded?'#7a7a66':'#111';x.textAlign='center';x.font='bold 26px monospace';x.fillText('DHAKA METRO-'+p[1],128,34);x.font='bold 48px monospace';x.fillText(p[2]+'-'+p[3],128,84);return new T.CanvasTexture(c)}
+function signTex(txt,bg,fg){const c=document.createElement('canvas');c.width=512;c.height=128;const x=c.getContext('2d');x.fillStyle=bg;x.fillRect(0,0,512,128);x.strokeStyle=fg;x.lineWidth=8;x.strokeRect(6,6,500,116);x.fillStyle=fg;x.font='bold 44px system-ui,sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(txt,256,66);return new T.CanvasTexture(c)}
+const flat=(tx,w,h)=>new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({map:tx}));
+function man(sh,pn,cap){const g=new T.Group(),aL=new T.Group(),aR=new T.Group();[-.17,.17].forEach(x=>bx(g,.3,.9,.3,pn,x,.45,0));bx(g,.7,.9,.4,sh,0,1.3,0);bx(g,.36,.36,.36,pick([0xc68642,0x8d5524,0xe0ac69]),0,2,0);if(cap)bx(g,.4,.14,.4,cap,0,2.22,0);aL.position.set(-.45,1.7,0);bx(aL,.2,.8,.2,sh,0,-.35,0);aR.position.set(.45,1.7,0);bx(aR,.2,.8,.2,sh,0,-.35,0);g.add(aL,aR);g.u={aL,aR};g.position.y=.1;return g}
+const gait=(m,t,i)=>{m.u.aL.rotation.x=Math.sin(t*12+i)*.9;m.u.aR.rotation.x=-m.u.aL.rotation.x;m.position.y=.1+Math.abs(Math.sin(t*12+i))*.12};
+// ---- richer world
+const SN=['PHARMACY','TEA STALL','BIRIYANI HOUSE','MOBILE BAZAR','CAFE DHAKA','TAILORS','SWEETS','BOOK STORE','GROCERY'],SB=['#b91c1c','#166534','#1d4ed8','#7c3aed','#c2410c','#0f766e'],STX=SN.map((n,i)=>signTex(n,SB[i%6],'#fff'));
+[-1,1].forEach(s=>{let i=0;for(let z=-150;z<=150;z+=25){bx(scene,.25,6,.25,0x333333,s*12.5,3,z);bx(scene,2,.2,.3,0x333333,s*11.7,6,z);bx(scene,.7,.25,.5,0xfff2b0,s*10.9,5.85,z)}
+ for(let z=-160;z<=160;z+=13,i++){const m=flat(STX[i%STX.length],5,1.25);m.position.set(s*23.9,3.4,z);m.rotation.y=-s*Math.PI/2;scene.add(m)}});
+for(let z=-150;z<=150;z+=40){[-1,1].forEach(s=>bx(scene,.3,9,.3,0x444444,s*13.2,4.5,z));[8.4,8.8,9.2].forEach(y=>bx(scene,26,.05,.05,0x1a1a1a,0,y,z))}
+[-45,55].forEach(z=>{for(let x=-9;x<=9;x+=1.4)bx(scene,.8,.03,3.2,0xffffff,x,.12,z)});
+for(let i=0;i<7;i++)bx(scene,rr(18,34),2,rr(8,14),0xffffff,rr(-150,150),75,rr(-150,150)).material=M(0xf4f9ff);
+// ---- decorate vehicles: number plates, party flags, tags
+function deco(v){const g=v.g,pr=v.rows.find(r=>r.l.indexOf('Number plate')==0),st=pr?pr.s:'CLEAR';
+ if(st.indexOf('MISSING')<0){const tx=plateTex(v.plateNo,st=='FADED'),sz=v.type=='car'?[.95,.38]:v.type=='bike'?[.7,.27]:[.75,.29];
+  const add=(x,y,z,ry)=>{const m=flat(tx,sz[0],sz[1]);m.position.set(x,y,z);m.rotation.y=ry;g.add(m)};
+  if(v.type=='car'){add(0,.62,-2.23,Math.PI);add(0,.55,2.23,0)}else if(v.type=='bike'){add(0,.75,-1.06,Math.PI);add(0,.6,1.1,0)}else add(0,.8,-1.5,Math.PI)}
+ if(v.type=='bike'&&R()<.3){v.party=1;const fc=pick([0x1b9a3a,0xd62828]);bx(g,.05,1.5,.05,0x553311,.32,1.2,-.7);bx(g,.7,.4,.03,fc,.68,1.75,-.7);bx(g,.28,.28,.04,0xffffff,.68,1.75,-.68)}
+ const tg=spr((v.party?'🚩 PARTY ':'')+v.plateNo,v.party?'#166534dd':'#0b0f14cc',v.party?'#fff':'#ffe14d',v.party?3.9:3.2);tg.position.set(0,v.type=='rick'?3.5:2.9,0);tg.visible=false;g.add(tg);v.tag=tg}
+V.forEach(deco);
+RP.forEach(r=>{const t=spr('📷 PRESS','#1d4ed8dd','#fff',2.8);t.position.y=3.6;r.g.add(t)});
+const _rd=render;render=function(){_rd();if(cur&&cur.party)$('panel').insertAdjacentHTML('afterbegin','<p class="bad">🚩 Ruling-party flag on this bike. Fine him and the party workers will come for you.</p>')};
+// ---- cutscenes for actions
+const _wh=SF.whistle;SF.whistle=()=>{_wh();const v=V.find(x=>x.st=='pull'&&!x._cd);if(v){v._cd=1;cine({dur:.9,live:1,title:'🛑 PULL OVER!',cam:(k,t,p,l)=>{p.set(v.x+(v.x>0?-6:6)*(1-.25*k),1.7,v.z-v.dir*8*(1-.35*k));l.set(v.x,1.2,v.z)}})}};
+const _col=collect;collect=function(v,amt,ex){_col(v,amt,ex);burst(v.x,2,v.z,0x44dd66,14,3);cine({dur:1.1,title:'💸 FINED ৳'+amt.toLocaleString(),sub:names[v.type]+' · '+v.plateNo,cam:orb(()=>v,6,2,-.9,-.3)});
+ if(v.type=='rick'&&!S.pc)protest();if(v.party&&!v.pun){v.pun=1;partyHit()}};
+const _rel=release;release=function(v){_rel(v);cine({dur:.8,live:1,title:'👋 Let go',cam:orb(()=>v,6,2,.5,.9)})};
+const _bribe=bribe;bribe=function(v){cine({dur:1.4,title:'💵 Pocketing the cash…',sub:'Hoping nobody is watching',cam:orb(()=>cop.position,5,1.8,.3,.9),end:()=>_bribe(v)})};
+const _fix=fix;fix=function(c){endFight();_fix(c);cine({dur:1,live:1,title:'🚔 Scene cleared',cam:orb(()=>cop.position,6,2.4,.4,.9)})};
+function endFight(){if(F){scene.remove(F.d,F.p,F.tg);F=null}}
+function startFight(a,b){const cx=(a.x+b.x)/2,cz=(a.z+b.z)/2,d=man(0x2d5a8a,0x222222),p=man(0xeeeeee,0x3a6b3a);d.position.set(b.x+(b.x>0?-1.6:1.6),.1,b.z);p.position.set(a.x,.1,a.z+a.dir*1.4);scene.add(d,p);
+ const tg=spr('🥊 ROAD RAGE','#b91c1ccc','#fff',3.4);tg.position.set(cx,3.6,cz);scene.add(tg);F={d,p,tg,cx,cz,d0:d.position.clone(),p0:p.position.clone(),t0:FX,nx:0,win:R()<.7?'p':'d'}}
+const _crash=crash;crash=function(a,b){_crash(a,b);const cx=(a.x+b.x)/2,cz=(a.z+b.z)/2;burst(cx,1,cz,0xffcc33,30,5);burst(cx,2,cz,0x666666,16,2);
+ cine({dur:2.4,title:'💥 ACCIDENT!',sub:'Reckless rickshaw '+a.plateNo+' hit a '+names[b.type].toLowerCase(),cam:orb(()=>({x:cx,z:cz}),9,3.5,.5,1.4)});
+ if(b.type=='car'){startFight(a,b);cine({dur:3.4,title:'🥊 ROAD RAGE!',sub:'The car driver steps out and goes for the puller',cam:orb(()=>F?{x:F.cx,z:F.cz}:{x:cx,z:cz},6,2.2,1.6,2.8)})}};
+// ---- party workers beat the cop
+function partyHit(){const gs=[];cine({dur:4.6,title:'🚩 PARTY WORKERS ARRIVE!',sub:'You fined a ruling-party member…',sfx:'siren',
+ init(){for(let i=0;i<5;i++){const c=i%2?0x1b9a3a:0xd62828,m=man(c,0x222222,0x111111),s=i%2?1:-1;m.position.set(s*24,.1,cop.position.z+rr(-5,5));m.s0=m.position.clone();bx(m,.05,1.4,.05,0x553311,.65,1.6,.1);bx(m,.6,.35,.03,c,.95,2.1,.1);scene.add(m);gs.push(m)}},
+ cam:(k,t,p,l)=>{const a=.2+k*2.2;p.set(cop.position.x+Math.sin(a)*8,3,cop.position.z+Math.cos(a)*8);l.set(cop.position.x,1.2,cop.position.z)},
+ upd(t){const k=ez(t/1.8);gs.forEach((m,i)=>{const a=i*1.26,tx=cop.position.x+Math.cos(a)*1.5,tz=cop.position.z+Math.sin(a)*1.5;m.position.x=m.s0.x+(tx-m.s0.x)*k;m.position.z=m.s0.z+(tz-m.s0.z)*k;m.rotation.y=Math.atan2(cop.position.x-m.position.x,cop.position.z-m.position.z);if(t<1.8)gait(m,t,i);else{m.u.aL.rotation.x=-1.7*Math.abs(Math.sin(t*10+i));m.u.aR.rotation.x=-1.7*Math.abs(Math.cos(t*9+i));m.position.y=.1+Math.abs(Math.sin(t*13+i))*.1}});
+  if(t>1.8&&t>CS.nx){CS.nx=t+.3;burst(cop.position.x,1.5,cop.position.z,0xffee55,6,3)}
+  if(t>2.6){cop.rotation.x=-1.4*ez((t-2.6)/.4);cop.position.y=.3}},
+ end(){gs.forEach(m=>scene.remove(m));cop.rotation.x=0;S.bdt-=3000;heat(18);news('🚩 Party workers beat you up and demand a ৳3,000 “donation”.','bad')}})}
+// ---- rickshaw protest + police brawl
+function protest(){S.pc=1;sfx('crowd');const z0=Math.max(-110,Math.min(110,cop.position.z+18)),pu=[],po=[],rk=[],cl=[0xd62828,0x2a9d8f,0xe9c46a,0x457b9d,0xf4a261,0x8d99ae],PH=[[0,'✊ RICKSHAW PULLERS STRIKE!','They’re blocking the road…'],[3.4,'🚔 POLICE REINFORCEMENTS','Batons out…'],[5.6,'💥 STREET BRAWL!','Pullers vs police'],[9.2,'🏆 PULLERS WIN!','Traffic police fined ৳5,000']];
+ cine({dur:12,title:'',sfx:'siren',
+ init(){for(let i=0;i<7;i++){const r=mkV('rick').g;r.rotation.y=Math.PI/2;r.sx=i%2?-34:34;r.tx=-9+i*3;r.position.set(r.sx,.1,z0+rr(-2,2));scene.add(r);rk.push(r)}
+  const st=['STOP FINING PULLERS','RICKSHAW = OUR LIFE','JUSTICE FOR PULLERS'];
+  for(let i=0;i<12;i++){const m=man(cl[i%6],0xdddddd,0xffffff);m.sx=i%2?-26:26;m.sz=z0+rr(-8,8);m.tx=-10+i*1.8+rr(-.3,.3);m.tz=z0-2+rr(-1,1);m.position.set(m.sx,.1,m.sz);if(i%4==1){const sg=flat(signTex(st[i>>2],'#fff7d6','#b91c1c'),3,.75);sg.position.set(0,3.1,.2);m.add(sg);bx(m,.05,1.4,.05,0x553311,0,2.4,.15)}scene.add(m);pu.push(m)}
+  for(let i=0;i<5;i++){const m=man(0xf2f2f2,0x1d2b4f,0x1d2b4f);const q=pu[i*2+1];m.tx=q.tx;m.tz=q.tz-1.3;m.position.set(m.tx,.1,z0-45);m.visible=false;scene.add(m);po.push(m)}},
+ cam:(k,t,p,l)=>{if(t<3.4){p.set(-14+t*3,9-t*.6,z0-22+t*.8);l.set(0,1.2,z0)}else if(t<5.6){p.set(14,1.8,z0-12+(t-3.4)*2);l.set(0,1.5,z0-4)}else if(t<9.2){const a=.3+(t-5.6)*.3;p.set(Math.sin(a)*12,3.5,z0-1+Math.cos(a)*-12);l.set(0,1.3,z0-1)}else{p.set(-3,2.2,z0-9+(t-9.2)*.5);l.set(0,.8,z0-2)}},
+ upd(t){for(let j=PH.length-1;j>=0;j--)if(t>=PH[j][0]){if(CS.ph!==j){CS.ph=j;$('ct').textContent=PH[j][1];$('cs2').textContent=PH[j][2]}break}
+  const k1=ez(t/3.4);rk.forEach(r=>r.position.x=r.sx+(r.tx-r.sx)*ez((t-.3)/3));
+  pu.forEach((m,i)=>{if(t<3.4){m.position.x=m.sx+(m.tx-m.sx)*k1;m.position.z=m.sz+(m.tz-m.sz)*k1;m.rotation.y=Math.atan2(m.tx-m.sx,m.tz-m.sz);gait(m,t,i)}else{m.position.x=m.tx;m.position.z=m.tz;m.rotation.y=Math.PI;
+   if(t<5.6||t>=9.2){m.u.aL.rotation.x=m.u.aR.rotation.x=-2.9+Math.sin(t*8+i)*.3;m.position.y=.1+Math.abs(Math.sin(t*7+i))*.1}else{m.u.aL.rotation.x=-1.7*Math.abs(Math.sin(t*10+i));m.u.aR.rotation.x=-1.7*Math.abs(Math.cos(t*9+i));m.position.y=.1+Math.abs(Math.sin(t*13+i))*.1}}});
+  const k2=ez((t-3.4)/2.2);po.forEach((m,i)=>{m.visible=t>3.2;m.position.x=m.tx;m.position.z=z0-45+(m.tz-(z0-45))*k2;m.rotation.y=0;if(k2<1)gait(m,t,i);else if(t<9.2){m.u.aL.rotation.x=-1.6*Math.abs(Math.sin(t*10+i));m.u.aR.rotation.x=-1.6*Math.abs(Math.cos(t*9+i));m.position.y=.1}
+   const kt=6.8+i*.45;if(t>kt){const q=ez((t-kt)/.35);m.rotation.x=-1.45*q;m.position.z=m.tz-1.6*q;m.position.y=.1+.25*q}});
+  if(t>5.6&&t<9.2&&t>CS.nx){CS.nx=t+.25;const m=po[R()*5|0];burst(m.tx,1.6,z0-1.5,0xffee55,4,3);burst(m.tx,.6,z0-1.5,0xcccccc,3,2)}},
+ end(){po.forEach(m=>scene.remove(m));S.bdt-=5000;heat(15);B={z:z0,until:S.t+16,pu,rk};news('✊ Pullers beat the police and fined YOU ৳5,000!','bad')}})}
+const blk=v=>B&&v.st!='park'&&(B.z-v.z)*v.dir>0&&(B.z-v.z)*v.dir<8;
+// ---- per-frame effects
+function fxu(dt){FX+=dt;
+ for(let i=PA.length-1;i>=0;i--){const p=PA[i],q=p.m.position;p.l-=dt;q.x+=p.vx*dt;q.y+=p.vy*dt;q.z+=p.vz*dt;p.vy-=9*dt;if(q.y<.1){q.y=.1;p.vy*=-.3}if(p.l<0){scene.remove(p.m);PA.splice(i,1)}}
+ for(const v of V)if(v.tag)v.tag.visible=Math.hypot(v.x-cop.position.x,v.z-cop.position.z)<32;
+ if(S.crash){if(!AM){AM=spr('🚨 ACCIDENT','#dc2626dd','#fff',3.6);scene.add(AM)}const c=S.crash;AM.visible=true;AM.position.set((c.a.x+c.b.x)/2,4.2+Math.sin(FX*6)*.2,(c.a.z+c.b.z)/2);c.a.g.rotation.z=.45;c.b.g.rotation.z=-.12;if(FX>(c.sp||0)){c.sp=FX+.4;burst(c.a.x,1,c.a.z,0xffaa22,4,3);burst(c.a.x,2.8,c.a.z,0x555555,2,1.2)}}else if(AM)AM.visible=false;
+ if(F){const u=FX-F.t0,k=Math.min(1,u/1.2),bz=1-(1-k)*(1-k),ox=.55;F.d.position.x=F.d0.x+(F.cx-ox-F.d0.x)*bz;F.d.position.z=F.d0.z+(F.cz-F.d0.z)*bz;F.p.position.x=F.p0.x+(F.cx+ox-F.p0.x)*bz;F.p.position.z=F.p0.z+(F.cz-F.p0.z)*bz;
+  const ang=Math.atan2(F.p.position.x-F.d.position.x,F.p.position.z-F.d.position.z);F.d.rotation.y=ang;F.p.rotation.y=ang+Math.PI;
+  if(u>1.2){[F.d,F.p].forEach((m,i)=>{m.u.aL.rotation.x=-1.7*Math.abs(Math.sin(u*10+i));m.u.aR.rotation.x=-1.7*Math.abs(Math.cos(u*9+i));m.position.y=.1+Math.abs(Math.sin(u*13+i*2))*.12});if(FX>F.nx){F.nx=FX+.3;burst(F.cx,1.6,F.cz,0xffee55,5,3);burst(F.cx,.5,F.cz,0xcccccc,3,2)}
+   if(u>5){const lo=F.win=='p'?F.d:F.p;lo.rotation.x=-1.4;lo.position.y=.3}}}
+ if(B){B.pu.forEach((m,i)=>{m.u.aL.rotation.x=m.u.aR.rotation.x=-2.9+Math.sin(FX*8+i)*.3;m.position.y=.1+Math.abs(Math.sin(FX*7+i))*.1});
+  if(S.t>B.until){B.pu.forEach(m=>scene.remove(m));B.rk.forEach(m=>scene.remove(m));B=null;S.pc=0;news('The protesters dispersed. The road is open again.','good')}}
+ if(!S.paused&&!CS&&!S.crash&&!B&&S.t>S.ac&&S.t>12&&R()<dt*.05){const a=V.find(v=>v.reck&&v.st=='go'&&Math.abs(v.z-cop.position.z)<70);if(a){const b=V.find(v=>v.type=='car'&&v.st=='go'&&v.dir==a.dir&&Math.abs(v.z-a.z)<60&&(v.z-a.z)*a.dir>5);if(b){a.lane=a.x=b.x;a.z=b.z-b.dir*2.8;crash(a,b)}}}}
+
+const clk=new T.Clock();
+function loop(){requestAnimationFrame(loop);const dt=Math.min(clk.getDelta(),.05);if(CS)csStep(dt);if(!S.paused&&(!CS||CS.live)){S.t+=dt;step(dt)}fxu(dt);
+ const fx=Math.sin(yaw),fz=Math.cos(yaw);cam.position.lerp(new T.Vector3(cop.position.x-fx*7,cop.position.y+4.8,cop.position.z-fz*7),Math.min(1,dt*8));
+ cam.lookAt(cop.position.x+fx*5,1.5,cop.position.z+fz*5);if(CS){cam.position.copy(CS.p);cam.lookAt(CS.l)}ren.render(scene,cam)}
+loop();
+</script></body></html>
